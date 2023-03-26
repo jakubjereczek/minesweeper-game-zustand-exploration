@@ -1,5 +1,7 @@
+import Canvas from './components/Canvas';
+
 const App = () => {
-  return <div>Zustand exploration</div>;
+  return <Canvas />;
 };
 
 export default App;
