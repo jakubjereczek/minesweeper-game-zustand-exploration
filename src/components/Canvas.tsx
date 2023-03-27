@@ -15,7 +15,7 @@ const Canvas = () => {
 
   return (
     <>
-      <canvas ref={ref} />
+      <canvas ref={ref} height="500px" width="500px" />
       {state.gameStatus === Status.Idle
         ? 'The game is initializing. please wait.'
         : 'Lets play'}
