@@ -1,13 +1,11 @@
 import { create } from 'zustand';
+import createSelectors from './createSelectors';
 import { devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 
-import createSelectors from './createSelectors';
-
 const DEFAULT_GAME_MINES = 8;
 
-const DEFAULT_GAME_ROW = 8;
-const DEFAULT_GAME_COLUMNS = 8;
+const DEFAULT_GAME_SIZE = 8;
 
 export enum Status {
   Idle = 'idle',
@@ -16,34 +14,36 @@ export enum Status {
   Succeeded = 'succeeded',
 }
 
+type CellState = 'undiscovered' | 'discovered' | 'flagged';
+
 type Cell = {
   x: number;
   y: number;
+  width: number;
+  height: number;
+  mine: boolean;
+  state: CellState;
 };
 
 interface GameState {
   gameStatus: Status;
-  bombsCount: number;
-  rowsCount: number;
-  columnsCount: number;
-  minesCells: Cell[];
-  flaggedCells: Cell[];
-  revealedCells: Cell[];
+  minesCount: number;
+  cellsCount: number;
+  cells: Cell[];
 }
 
 interface GameActions {
   init: () => void;
+  pushCell: (cell: Cell) => void;
+  modifyCell: (cell: Partial<Cell> & { id: number }) => void;
   reset: () => void;
 }
 
 const initialState: GameState = {
   gameStatus: Status.Idle,
-  bombsCount: DEFAULT_GAME_MINES,
-  rowsCount: DEFAULT_GAME_ROW,
-  columnsCount: DEFAULT_GAME_COLUMNS,
-  minesCells: [],
-  flaggedCells: [],
-  revealedCells: [],
+  minesCount: DEFAULT_GAME_MINES,
+  cellsCount: DEFAULT_GAME_SIZE,
+  cells: [],
 };
 
 export type MinesweeperStore = GameState & GameActions;
@@ -60,6 +60,13 @@ const useMinesweeperState = create<MinesweeperStore, MiddlewareDefinitions>(
       immer((set) => ({
         ...initialState,
         init: () => set({ ...initialState, gameStatus: Status.Init }),
+        pushCell: (cell: Cell) =>
+          set((state) => ({ cells: [...state.cells, cell] })),
+        modifyCell: (cell: Partial<Cell> & { id: number }) => {
+          set((state) => {
+            state.cells[cell.id] = { ...state.cells[cell.id], ...cell };
+          });
+        },
         reset: () => {
           set(initialState);
         },

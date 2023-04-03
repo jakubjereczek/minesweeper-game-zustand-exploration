@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import CanvasController from '../CanvasController';
+import { GAME_WIDTH } from '../constants';
 import { Status, useMinesweeperStateSelectors } from '../store/store';
 
 const Canvas = () => {
@@ -14,12 +15,12 @@ const Canvas = () => {
   }, []);
 
   return (
-    <>
-      <canvas ref={ref} height="500px" width="500px" />
+    <div>
+      <canvas ref={ref} height={GAME_WIDTH + 'px'} width={GAME_WIDTH + 'px'} />
       {state.gameStatus === Status.Idle
         ? 'The game is initializing. please wait.'
         : 'Lets play'}
-    </>
+    </div>
   );
 };
 
