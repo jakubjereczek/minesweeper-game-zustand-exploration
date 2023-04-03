@@ -10,13 +10,19 @@ const DEFAULT_GAME_SIZE = 8;
 export enum Status {
   Idle = 'idle',
   Init = 'init',
+  Playing = 'playing',
   Failed = 'failed',
   Succeeded = 'succeeded',
 }
 
-type CellState = 'undiscovered' | 'discovered' | 'flagged';
+export enum CellState {
+  Undiscovered,
+  Discovered,
+  Flagged,
+}
 
-type Cell = {
+export type Cell = {
+  id: number;
   x: number;
   y: number;
   width: number;
@@ -26,6 +32,7 @@ type Cell = {
 };
 
 interface GameState {
+  actions: [Action, number][]; // Action cellId
   gameStatus: Status;
   minesCount: number;
   cellsCount: number;
@@ -34,12 +41,20 @@ interface GameState {
 
 interface GameActions {
   init: () => void;
+  start: () => void;
   pushCell: (cell: Cell) => void;
-  modifyCell: (cell: Partial<Cell> & { id: number }) => void;
+  modifyCell: (cell: Partial<Cell> & { id: number; action?: Action }) => void;
+  pushAction: (action: Action, cellId: number) => void;
   reset: () => void;
 }
 
+export enum Action {
+  Click,
+  Flag,
+}
+
 const initialState: GameState = {
+  actions: [],
   gameStatus: Status.Idle,
   minesCount: DEFAULT_GAME_MINES,
   cellsCount: DEFAULT_GAME_SIZE,
@@ -60,13 +75,21 @@ const useMinesweeperState = create<MinesweeperStore, MiddlewareDefinitions>(
       immer((set) => ({
         ...initialState,
         init: () => set({ ...initialState, gameStatus: Status.Init }),
+        start: () => set((state) => ({ ...state, gameStatus: Status.Playing })),
         pushCell: (cell: Cell) =>
           set((state) => ({ cells: [...state.cells, cell] })),
-        modifyCell: (cell: Partial<Cell> & { id: number }) => {
+        modifyCell: (cell: Partial<Cell> & { id: number; action?: Action }) => {
           set((state) => {
             state.cells[cell.id] = { ...state.cells[cell.id], ...cell };
+            if (cell.action) {
+              state.actions.push([cell.action, cell.id]);
+            }
           });
         },
+        pushAction: (action: Action, cellId: number) =>
+          set((state) => {
+            state.actions.push([action, cellId]);
+          }),
         reset: () => {
           set(initialState);
         },

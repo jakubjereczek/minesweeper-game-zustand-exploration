@@ -8,10 +8,12 @@ const Canvas = () => {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (ref.current) {
-      const canvasController = new CanvasController(ref.current);
-      canvasController.draw();
-    }
+    const canvasController = new CanvasController(ref.current);
+    canvasController.draw();
+
+    return () => {
+      canvasController.dispose();
+    };
   }, []);
 
   return (
