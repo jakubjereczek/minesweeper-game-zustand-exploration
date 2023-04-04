@@ -5,7 +5,7 @@ import { immer } from 'zustand/middleware/immer';
 
 const DEFAULT_GAME_MINES = 8;
 
-const DEFAULT_GAME_SIZE = 8;
+const DEFAULT_GAME_SIZE = 12;
 
 export enum Status {
   Idle = 'idle',
@@ -29,6 +29,7 @@ export type Cell = {
   height: number;
   mine: boolean;
   state: CellState;
+  neighborsMines: number;
 };
 
 interface GameState {
@@ -44,6 +45,7 @@ interface GameActions {
   start: () => void;
   pushCell: (cell: Cell) => void;
   modifyCell: (cell: Partial<Cell> & { id: number; action?: Action }) => void;
+  updateCells: (cell: Cell[]) => void;
   pushAction: (action: Action, cellId: number) => void;
   reset: () => void;
 }
@@ -86,6 +88,7 @@ const useMinesweeperState = create<MinesweeperStore, MiddlewareDefinitions>(
             }
           });
         },
+        updateCells: (cells: Cell[]) => set(() => ({ cells })),
         pushAction: (action: Action, cellId: number) =>
           set((state) => {
             state.actions.push([action, cellId]);

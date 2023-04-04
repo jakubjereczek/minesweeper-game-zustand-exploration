@@ -1,4 +1,8 @@
-import { detectCell, getCellMapCount } from './CanvasController.utils';
+import {
+  detectCell,
+  getCellMapCount,
+  getNeighborsCellsIds,
+} from './CanvasController.utils';
 import { GAME_WIDTH } from './constants';
 import useMinesweeperState, {
   Action,
@@ -61,7 +65,18 @@ class CanvasController {
   }
 
   private onClickAction(cell: Cell) {
-    this.drawCell(cell, 'yellow');
+    if (cell.state === CellState.Undiscovered) {
+      if (cell.mine) {
+        this.drawCell(cell, 'black');
+      } else {
+        this.state.modifyCell({
+          ...cell,
+          state: CellState.Discovered,
+        });
+        this.drawCell(cell, 'yellow');
+        this.drawCellNeighborsMines(cell);
+      }
+    }
   }
 
   private onFlagAction(cell: Cell) {
@@ -89,6 +104,7 @@ class CanvasController {
       height: size,
       mine: false,
       state: CellState.Undiscovered,
+      neighborsMines: 0,
     };
   }
 
@@ -107,13 +123,29 @@ class CanvasController {
     );
   }
 
+  private drawCellNeighborsMines(cell: Cell) {
+    const context = this.canvas?.getContext('2d');
+    if (!context) {
+      return new Error('An error occurred when tried to getContext.');
+    }
+    context.fillStyle = 'tomato';
+    context.font = '14px Arial';
+    context.fillText(String(cell.neighborsMines), cell.x + 4, cell.y + 16);
+  }
+
   private setCell(cell: Cell, color = 'gray') {
     this.drawCell(cell, color);
     this.state.pushCell(cell);
   }
 
   private setMines() {
-    const ids = getRandomNumbers(this.state.minesCount, [0, getCellMapCount()]);
+    const range = [0, getCellMapCount()] as [number, number];
+    const ids = getRandomNumbers(this.state.minesCount, range);
+    this.setMinesCells(ids);
+    this.calculateMinesDensity(ids);
+  }
+
+  private setMinesCells(ids: number[]) {
     ids.forEach((id) => {
       this.state.modifyCell({
         id,
@@ -122,10 +154,27 @@ class CanvasController {
     });
   }
 
+  private calculateMinesDensity(ids: number[]) {
+    const tempCells = Array.from(this.state.cells);
+    if (tempCells.length) {
+      ids.forEach((id) => {
+        const neighborsIds = getNeighborsCellsIds(id);
+        neighborsIds.forEach((neighborId) => {
+          console.log(neighborId);
+          tempCells[neighborId] = {
+            ...tempCells[neighborId],
+            neighborsMines: tempCells[neighborId].neighborsMines + 1,
+          };
+        });
+      });
+      this.state.updateCells(tempCells);
+    }
+  }
+
   private handleClick(ev: MouseEvent) {
     const cell = detectCell(this.state.cells, ev.offsetX, ev.offsetY);
     if (!cell) {
-      throw new Error('There was a problem with cell detection on the map.');
+      throw new Error('An issue occurred. Cannot detect cell.');
     }
     this.state.pushAction(Action.Click, cell.id);
   }
