@@ -1,10 +1,4 @@
-import useMinesweeperState, { Cell, CellState } from './store/store';
-
-export function getCellMapCount() {
-  const state = useMinesweeperState.getState();
-
-  return state.cellsCount * state.cellsCount;
-}
+import useMinesweeperState, { Cell, CellState } from '../store/store';
 
 export function detectCell(cells: Cell[], x: number, y: number) {
   return cells.find(
@@ -13,10 +7,9 @@ export function detectCell(cells: Cell[], x: number, y: number) {
 }
 
 export function getNeighborsCellsIds(id: number) {
-  const state = useMinesweeperState.getState();
-  const count = state.cellsCount;
+  const { cellsCount } = useMinesweeperState.getState();
   const cellsAround = [];
-  for (let j = id - count - 1; j <= id + count; j += count) {
+  for (let j = id - cellsCount - 1; j <= id + cellsCount; j += cellsCount) {
     for (let i = 0; i <= 2; i++) {
       cellsAround.push(i + j);
     }
@@ -25,7 +18,7 @@ export function getNeighborsCellsIds(id: number) {
     if (neighborId < 0) {
       return false;
     }
-    if (neighborId >= getCellMapCount()) {
+    if (neighborId >= Math.pow(cellsCount, 2)) {
       return false;
     }
     if (neighborId === id) {
