@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import GameController from '../controllers/GameController';
+import Game from '../controllers/Game';
 import { GAME_WIDTH } from '../constants';
 import { useMinesweeperStateSelectors } from '../store/store';
 
@@ -8,11 +8,11 @@ const Canvas = () => {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const gameController = new GameController(ref.current);
-    gameController.init();
+    const game = new Game(ref.current);
+    game.init();
 
     return () => {
-      gameController.dispose();
+      game.dispose();
     };
   }, []);
 

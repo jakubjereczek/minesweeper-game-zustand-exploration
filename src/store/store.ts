@@ -39,7 +39,7 @@ interface GameState {
 }
 
 interface GameActions {
-  init: () => void;
+  idle: () => void;
   updateStatus: (status: Status) => void;
   pushCell: (cell: Cell) => void;
   modifyCell: (cell: Partial<Cell> & { id: number; action?: Action }) => void;
@@ -74,9 +74,9 @@ const useMinesweeperState = create<MinesweeperStore, MiddlewareDefinitions>(
     devtools(
       immer((set) => ({
         ...initialState,
-        init: () =>
+        idle: () =>
           set(
-            { ...initialState, gameStatus: Status.Init },
+            { ...initialState, gameStatus: Status.Idle },
             false,
             'minesweeper/init',
           ),
