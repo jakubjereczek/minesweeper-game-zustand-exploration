@@ -1,4 +1,4 @@
-import useMinesweeperState, { Cell } from './store/store';
+import useMinesweeperState, { Cell, CellState } from './store/store';
 
 export function getCellMapCount() {
   const state = useMinesweeperState.getState();
@@ -33,4 +33,22 @@ export function getNeighborsCellsIds(id: number) {
     }
     return true;
   });
+}
+
+function getColorByCellState(state: CellState) {
+  switch (state) {
+    case CellState.Undiscovered:
+      return 'gray';
+    case CellState.Discovered:
+      return 'orange';
+    case CellState.Flagged:
+      return 'yellow';
+  }
+}
+
+export function getFillStyleByCell(state: CellState, mine: boolean): string {
+  if (mine) {
+    return 'black';
+  }
+  return getColorByCellState(state);
 }

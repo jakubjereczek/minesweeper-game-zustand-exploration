@@ -4,13 +4,11 @@ import { devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 
 const DEFAULT_GAME_MINES = 8;
-
 const DEFAULT_GAME_SIZE = 12;
 
 export enum Status {
   Idle = 'idle',
   Init = 'init',
-  Playing = 'playing',
   Failed = 'failed',
   Succeeded = 'succeeded',
 }
@@ -42,7 +40,7 @@ interface GameState {
 
 interface GameActions {
   init: () => void;
-  start: () => void;
+  updateStatus: (status: Status) => void;
   pushCell: (cell: Cell) => void;
   modifyCell: (cell: Partial<Cell> & { id: number; action?: Action }) => void;
   updateCells: (cell: Cell[]) => void;
@@ -76,25 +74,48 @@ const useMinesweeperState = create<MinesweeperStore, MiddlewareDefinitions>(
     devtools(
       immer((set) => ({
         ...initialState,
-        init: () => set({ ...initialState, gameStatus: Status.Init }),
-        start: () => set((state) => ({ ...state, gameStatus: Status.Playing })),
+        init: () =>
+          set(
+            { ...initialState, gameStatus: Status.Init },
+            false,
+            'minesweeper/init',
+          ),
+        updateStatus: (status: Status) =>
+          set(
+            (state) => ({ ...state, gameStatus: status }),
+            false,
+            'minesweeper/updateStatus',
+          ),
         pushCell: (cell: Cell) =>
-          set((state) => ({ cells: [...state.cells, cell] })),
+          set(
+            (state) => ({ cells: [...state.cells, cell] }),
+            false,
+            'minesweeper/pushCell',
+          ),
         modifyCell: (cell: Partial<Cell> & { id: number; action?: Action }) => {
-          set((state) => {
-            state.cells[cell.id] = { ...state.cells[cell.id], ...cell };
-            if (cell.action) {
-              state.actions.push([cell.action, cell.id]);
-            }
-          });
+          set(
+            (state) => {
+              state.cells[cell.id] = { ...state.cells[cell.id], ...cell };
+              if (cell.action) {
+                state.actions.push([cell.action, cell.id]);
+              }
+            },
+            false,
+            'minesweeper/modifyCell',
+          );
         },
-        updateCells: (cells: Cell[]) => set(() => ({ cells })),
+        updateCells: (cells: Cell[]) =>
+          set(() => ({ cells }), false, 'minesweeper/updateCells'),
         pushAction: (action: Action, cellId: number) =>
-          set((state) => {
-            state.actions.push([action, cellId]);
-          }),
+          set(
+            (state) => {
+              state.actions.push([action, cellId]);
+            },
+            false,
+            'minesweeper/pushCells',
+          ),
         reset: () => {
-          set(initialState);
+          set(initialState, false, 'minesweeper/reset');
         },
       })),
     ),
