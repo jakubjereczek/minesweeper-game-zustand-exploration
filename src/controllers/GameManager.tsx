@@ -45,13 +45,12 @@ class GameManager implements IGameManager {
   }
 
   onClick(ev: MouseEvent) {
-    const { gameStatus, pushAction } = this.store.getState();
-
+    const gameStatus = this.store.getState().gameStatus;
     switch (gameStatus) {
       case Status.Init:
         const cell = this.detectCell(ev.offsetX, ev.offsetY);
         if (cell) {
-          pushAction(Action.Click, cell.id);
+          this.store.getState().pushAction(Action.Click, cell.id);
         }
         break;
       case Status.Failed:
@@ -60,42 +59,51 @@ class GameManager implements IGameManager {
     }
   }
 
+  showMine(cell: Cell) {
+    this.store.getState().modifyCell(cell);
+    this.drawCell(cell);
+    this.drawCellTextMinesCount(cell);
+  }
+
+  showMinesAround(cell: Cell) {
+    const tempCells: Cell[] = Array.from(this.store.getState().cells);
+    this.cellStructure.exploreCells([], cell.id).forEach((cellId) => {
+      if (tempCells[cellId].state === CellState.Undiscovered) {
+        tempCells[cellId] = {
+          ...tempCells[cellId],
+          state: CellState.Discovered,
+        };
+        this.drawCell(tempCells[cellId]);
+        if (tempCells[cellId].minesAround) {
+          this.drawCellTextMinesCount(tempCells[cellId]);
+        }
+      }
+    });
+    this.store.getState().updateCells(tempCells);
+  }
+
+  showMinesCells() {
+    this.store
+      .getState()
+      .cells.filter((cell) => cell.mine)
+      .forEach((cell) => this.drawCell(cell));
+    this.store.getState().updateStatus(Status.Failed);
+  }
+
   onCellClick(cell: Cell) {
-    const { gameStatus, updateStatus, updateCells, modifyCell, cells } =
-      this.store.getState();
-
-    if (gameStatus === Status.Init && cell.state === CellState.Undiscovered) {
-      if (cell.mine) {
-        cells
-          .filter((cell) => cell.mine)
-          .forEach((cell) => this.drawCell(cell));
-        updateStatus(Status.Failed);
-      } else {
-        if (cell.minesAround) {
-          const discoveredCell = {
-            ...cell,
-            state: CellState.Discovered,
-          };
-          modifyCell(discoveredCell);
-          this.drawCell(discoveredCell);
-          this.drawCellTextMinesCount(discoveredCell);
+    if (this.store.getState().gameStatus === Status.Init) {
+      if (cell.state === CellState.Undiscovered) {
+        if (cell.mine) {
+          this.showMinesCells();
         } else {
-          const tempCells: Cell[] = Array.from(cells);
-          const cellsIds = this.cellStructure.exploreCells([], cell.id);
-
-          cellsIds.forEach((cellId) => {
-            if (tempCells[cellId].state === CellState.Undiscovered) {
-              tempCells[cellId] = {
-                ...tempCells[cellId],
-                state: CellState.Discovered,
-              };
-              this.drawCell(tempCells[cellId]);
-              if (tempCells[cellId].minesAround) {
-                this.drawCellTextMinesCount(tempCells[cellId]);
-              }
-            }
-          });
-          updateCells(tempCells);
+          if (cell.minesAround) {
+            this.showMine({
+              ...cell,
+              state: CellState.Discovered,
+            });
+          } else {
+            this.showMinesAround(cell);
+          }
         }
       }
     }
@@ -104,10 +112,10 @@ class GameManager implements IGameManager {
   onFlag(cell: Cell) {}
 
   private createCells() {
-    const { cellsCount } = this.store.getState();
+    const size = this.store.getState().cellsCount;
     const tempCells: Cell[] = [];
-    for (let x = 0; x < cellsCount; x++) {
-      for (let y = 0; y < cellsCount; y++) {
+    for (let x = 0; x < size; x++) {
+      for (let y = 0; y < size; y++) {
         const cell = this.cellStructure.shapeCell(
           tempCells.length,
           y,

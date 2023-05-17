@@ -33,12 +33,15 @@ class CellController implements ICellController {
   }
 
   exploreCells(cellsIds: number[], id: number) {
-    const { cells } = this.store.getState();
     const cellsAround = this.getAroundCells(id);
 
     if (!cellsIds.includes(id)) {
       cellsIds.push(id);
-      if (!cellsAround.filter((cellId) => cells[cellId].mine).length) {
+      if (
+        !cellsAround.filter(
+          (cellId) => this.store.getState().cells[cellId].mine,
+        ).length
+      ) {
         cellsAround.forEach((cellId) => {
           this.exploreCells(cellsIds, cellId);
         });
@@ -48,25 +51,25 @@ class CellController implements ICellController {
   }
 
   getAroundCells(id: number) {
-    const { cellsCount } = this.store.getState();
+    const size = this.store.getState().cellsCount;
     const aroundCells = [];
-    const row = Math.floor(id / cellsCount);
-    const col = id % cellsCount;
+    const row = Math.floor(id / size);
+    const col = id % size;
 
     for (let i = -1; i <= 1; i++) {
       for (let j = -1; j <= 1; j++) {
         const newRow = row + i;
         const newCol = col + j;
-        const newId = newRow * cellsCount + newCol;
+        const newId = newRow * size + newCol;
 
         if (
           (i !== 0 || j !== 0) &&
           newRow >= 0 &&
-          newRow < cellsCount &&
+          newRow < size &&
           newCol >= 0 &&
-          newCol < cellsCount &&
+          newCol < size &&
           newId >= 0 &&
-          newId < cellsCount ** 2
+          newId < size ** 2
         ) {
           aroundCells.push(newId);
         }
