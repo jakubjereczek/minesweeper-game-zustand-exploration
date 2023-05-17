@@ -63,7 +63,7 @@ class Game implements IGame {
       unsubscribe();
     });
     this.unsubscribes = [];
-    this.getState().reset();
+    this.gameManager.finish();
   }
 
   private getCellById(id: number): Cell | undefined {

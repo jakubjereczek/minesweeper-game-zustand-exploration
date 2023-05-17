@@ -5,7 +5,8 @@ import { MinesweeperStore } from './Game';
 interface ICellController {
   getFillStyleByCell(state: CellState, mine: boolean): string;
   getColorByCellState(state: CellState): string;
-  getNeighborsCellsIds(id: number): number[];
+  getAroundCells(id: number): number[];
+  exploreCells(cellsIds: number[], id: number): number[];
   shapeCell(id: number, x: number, y: number, size: number): void;
   getSize(): void;
 }
@@ -31,26 +32,48 @@ class CellController implements ICellController {
     }
   }
 
-  getNeighborsCellsIds(id: number) {
-    const { cellsCount } = this.store.getState();
-    const cellsAround = [];
-    for (let j = id - cellsCount - 1; j <= id + cellsCount; j += cellsCount) {
-      for (let i = 0; i <= 2; i++) {
-        cellsAround.push(i + j);
+  exploreCells(cellsIds: number[], id: number) {
+    const { cells } = this.store.getState();
+    const cellsAround = this.getAroundCells(id);
+
+    if (!cellsIds.includes(id)) {
+      cellsIds.push(id);
+      if (!cellsAround.filter((cellId) => cells[cellId].mine).length) {
+        cellsAround.forEach((cellId) => {
+          this.exploreCells(cellsIds, cellId);
+        });
       }
     }
-    return cellsAround.filter((neighborId) => {
-      if (neighborId < 0) {
-        return false;
+    return cellsIds;
+  }
+
+  getAroundCells(id: number) {
+    const { cellsCount } = this.store.getState();
+    const aroundCells = [];
+    const row = Math.floor(id / cellsCount);
+    const col = id % cellsCount;
+
+    for (let i = -1; i <= 1; i++) {
+      for (let j = -1; j <= 1; j++) {
+        const newRow = row + i;
+        const newCol = col + j;
+        const newId = newRow * cellsCount + newCol;
+
+        if (
+          (i !== 0 || j !== 0) &&
+          newRow >= 0 &&
+          newRow < cellsCount &&
+          newCol >= 0 &&
+          newCol < cellsCount &&
+          newId >= 0 &&
+          newId < cellsCount ** 2
+        ) {
+          aroundCells.push(newId);
+        }
       }
-      if (neighborId >= Math.pow(cellsCount, 2)) {
-        return false;
-      }
-      if (neighborId === id) {
-        return false;
-      }
-      return true;
-    });
+    }
+
+    return aroundCells;
   }
 
   shapeCell(id: number, x: number, y: number, size: number): Cell {
@@ -62,7 +85,7 @@ class CellController implements ICellController {
       height: size,
       mine: false,
       state: CellState.Undiscovered,
-      neighborsMines: 0,
+      minesAround: 0,
     };
   }
 
