@@ -1,7 +1,8 @@
 import { Action, Cell, CellState, Status } from '../store/store';
-import { getRandomNumbers } from '../utils/number';
+import { generateRandomNumbersInRange } from '../utils/number';
 import CanvasController from './CanvasController';
 import CanvasRenderer from './CanvasRenderer';
+import CellUtils from './CellEvent';
 import CellStructure from './CellStructure';
 import { MinesweeperStore } from './Game';
 
@@ -18,6 +19,7 @@ interface IGameManager {
 class GameManager implements IGameManager {
   public canvasRenderer: CanvasRenderer;
   private cellStructure: CellStructure;
+  private cellUtils: CellUtils;
 
   constructor(
     private store: MinesweeperStore,
@@ -25,18 +27,21 @@ class GameManager implements IGameManager {
   ) {
     this.canvasRenderer = new CanvasRenderer(this.canvasController);
     this.cellStructure = new CellStructure(this.store);
-    this.canvasController.getCanvas()!.onclick = this.onClick.bind(this);
+    this.cellUtils = new CellUtils(this.store);
+
+    const canvasElement = this.canvasController.getCanvas();
+    if (canvasElement) {
+      canvasElement.onmousedown = this.onClick.bind(this);
+      canvasElement.oncontextmenu = (ev) => {
+        ev.preventDefault();
+      };
+    }
   }
 
   start() {
     this.store.getState().idle();
     this.canvasRenderer.drawBoard();
-    const cells = this.createCells();
-    this.store.getState().updateCells(cells);
-    const { cells: mineCells, ids } = this.createMineCells();
-    this.store.getState().updateCells(mineCells);
-    const readyCells = this.calculateMines(ids);
-    this.store.getState().updateCells(readyCells);
+    this.prepareCells();
     this.store.getState().updateStatus(Status.Init);
   }
 
@@ -44,13 +49,21 @@ class GameManager implements IGameManager {
     this.store.getState().reset();
   }
 
+  checkWin() {
+    // TODO: To implement.
+  }
+
   onClick(ev: MouseEvent) {
+    console.log('onClick');
+    ev.preventDefault();
     const gameStatus = this.store.getState().gameStatus;
     switch (gameStatus) {
       case Status.Init:
-        const cell = this.detectCell(ev.offsetX, ev.offsetY);
+        const cell = this.cellUtils.detectCell(ev.offsetX, ev.offsetY);
         if (cell) {
-          this.store.getState().pushAction(Action.Click, cell.id);
+          this.store
+            .getState()
+            .pushAction(ev.button === 0 ? Action.Click : Action.Flag, cell.id);
         }
         break;
       case Status.Failed:
@@ -62,7 +75,7 @@ class GameManager implements IGameManager {
   showMine(cell: Cell) {
     this.store.getState().modifyCell(cell);
     this.drawCell(cell);
-    this.drawCellTextMinesCount(cell);
+    this.drawCellTextMine(cell);
   }
 
   showMinesAround(cell: Cell) {
@@ -75,7 +88,7 @@ class GameManager implements IGameManager {
         };
         this.drawCell(tempCells[cellId]);
         if (tempCells[cellId].minesAround) {
-          this.drawCellTextMinesCount(tempCells[cellId]);
+          this.drawCellTextMine(tempCells[cellId]);
         }
       }
     });
@@ -109,13 +122,43 @@ class GameManager implements IGameManager {
     }
   }
 
-  onFlag(cell: Cell) {}
+  onFlag(cell: Cell) {
+    if (cell.state === CellState.Flagged) {
+      const newCell = {
+        ...cell,
+        state: CellState.Undiscovered,
+      };
+      this.store.getState().modifyCell(newCell);
+      this.drawCell({ ...newCell, mine: false });
+    } else if (cell.state === CellState.Undiscovered) {
+      const newCell = {
+        ...cell,
+        state: CellState.Flagged,
+      };
+      this.store.getState().modifyCell(newCell);
+      this.drawCell({ ...newCell, mine: false });
+      this.drawCellFlag(newCell);
+    }
+  }
+
+  private prepareCells() {
+    this.createCells();
+    this.createMines();
+    this.calculateMinesAround();
+  }
 
   private createCells() {
-    const size = this.store.getState().cellsCount;
+    const tempCells = this.shapeCells();
+    for (let i = 0; i < tempCells.length; i++) {
+      this.drawCell(tempCells[i]);
+    }
+    this.store.getState().updateCells(tempCells);
+  }
+
+  private shapeCells() {
     const tempCells: Cell[] = [];
-    for (let x = 0; x < size; x++) {
-      for (let y = 0; y < size; y++) {
+    for (let x = 0; x < this.cellUtils.getSize(); x++) {
+      for (let y = 0; y < this.cellUtils.getSize(); y++) {
         const cell = this.cellStructure.shapeCell(
           tempCells.length,
           y,
@@ -123,36 +166,41 @@ class GameManager implements IGameManager {
           this.cellStructure.getSize(),
         );
         tempCells.push(cell);
-        this.drawCell(cell);
       }
     }
     return tempCells;
   }
 
-  private createMineCells() {
-    const tempCells = Array.from(this.store.getState().cells);
-    const ids = getRandomNumbers(
-      this.store.getState().minesCount,
-      this.getCellsRange(),
-    );
+  private createMines() {
+    const tempCells = this.cellUtils.copyCells();
+    const cellsCount = this.store.getState().cellsCount;
+    const minesCount = this.store.getState().minesCount;
 
-    ids.forEach((id) => {
-      tempCells[id] = {
-        ...tempCells[id],
+    const randomCellsIds = generateRandomNumbersInRange(minesCount, [
+      0,
+      cellsCount ** 2 - 1,
+    ]);
+
+    randomCellsIds.forEach((cellId) => {
+      tempCells[cellId] = {
+        ...tempCells[cellId],
         mine: true,
       };
     });
-    return {
-      cells: tempCells,
-      ids,
-    };
+    this.store.getState().updateCells(tempCells);
   }
 
-  private calculateMines(minesCells: number[]) {
-    const tempCells = Array.from(this.store.getState().cells);
-    minesCells.forEach((cellId) => {
-      const cellAroundIds = this.cellStructure.getAroundCells(cellId);
-      [cellId, ...cellAroundIds].forEach((cellId) => {
+  private calculateMinesAround() {
+    const tempCells = this.cellUtils.copyCells();
+    const minesCells = tempCells
+      .filter((cell) => cell.mine)
+      .map((cell) => cell.id);
+
+    minesCells.forEach((mineCellId) => {
+      const cellAroundIds = this.cellStructure.getAroundCells(mineCellId);
+      const aroundCellsIds = [mineCellId, ...cellAroundIds];
+
+      aroundCellsIds.forEach((cellId) => {
         if (!tempCells[cellId].mine) {
           tempCells[cellId] = {
             ...tempCells[cellId],
@@ -161,7 +209,7 @@ class GameManager implements IGameManager {
         }
       });
     });
-    return tempCells;
+    this.store.getState().updateCells(tempCells);
   }
 
   private drawCell(cell: Cell): void {
@@ -172,7 +220,7 @@ class GameManager implements IGameManager {
     });
   }
 
-  private drawCellTextMinesCount({ x, y, minesAround }: Cell) {
+  private drawCellTextMine({ x, y, minesAround }: Cell) {
     this.canvasRenderer.drawText({
       x: x + CELL_TEXT_OFFSET_X,
       y: y + CELL_TEXT_OFFSET_Y,
@@ -181,17 +229,13 @@ class GameManager implements IGameManager {
     });
   }
 
-  private getCellsRange(): [number, number] {
-    return [0, Math.pow(this.store.getState().cellsCount, 2) - 1];
-  }
-
-  private detectCell(x: number, y: number) {
-    return this.store
-      .getState()
-      .cells.find(
-        (c) =>
-          x >= c.x && x <= c.x + c.width && y >= c.y && y <= c.y + c.height,
-      );
+  private drawCellFlag({ x, y }: Cell) {
+    this.canvasRenderer.drawText({
+      x: x + CELL_TEXT_OFFSET_X,
+      y: y + CELL_TEXT_OFFSET_Y,
+      text: `FLAG`,
+      fontSize: 14,
+    });
   }
 }
 

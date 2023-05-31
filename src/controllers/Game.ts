@@ -24,38 +24,27 @@ class Game implements IGame {
   }
 
   init() {
-    const canvas = this.canvasController.getCanvas();
-    if (canvas) {
-      this.subscribe();
-      this.gameManager.start();
-    }
-  }
-
-  private subscribe() {
-    this.unsubscribes.push(
-      this.store.subscribe(
-        (state) => state.actions,
-        (actions) => {
-          if (actions[actions.length - 1]) {
-            this.onStateAction(actions[actions.length - 1]);
+    const subscription = this.store.subscribe(
+      (state) => state.actions,
+      (actions) => {
+        if (actions[actions.length - 1]) {
+          const cell =
+            this.store.getState().cells[actions[actions.length - 1][1]];
+          if (cell) {
+            switch (actions[actions.length - 1][0]) {
+              case Action.Click:
+                this.gameManager.onCellClick(cell);
+                break;
+              case Action.Flag:
+                this.gameManager.onFlag(cell);
+                break;
+            }
           }
-        },
-      ),
+        }
+      },
     );
-  }
-
-  private onStateAction([action, id]: [Action, number]) {
-    const cell = this.getCellById(id);
-    if (cell) {
-      if (action === Action.Click) {
-        this.gameManager.onCellClick(cell);
-        return;
-      }
-      if (action === Action.Flag) {
-        this.gameManager.onCellClick(cell);
-        return;
-      }
-    }
+    this.unsubscribes.push(subscription);
+    this.gameManager.start();
   }
 
   dispose() {
@@ -64,14 +53,6 @@ class Game implements IGame {
     });
     this.unsubscribes = [];
     this.gameManager.finish();
-  }
-
-  private getCellById(id: number): Cell | undefined {
-    return this.getState().cells[id];
-  }
-
-  private getState() {
-    return this.store.getState();
   }
 }
 
