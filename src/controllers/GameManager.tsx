@@ -11,9 +11,23 @@ const CELL_TEXT_OFFSET_Y = 16;
 
 interface IGameManager {
   start(): void;
+  finish(): void;
+  checkWin(): boolean;
+  handleWin(): void;
   onClick(ev: MouseEvent): void;
+  showMine(cell: Cell): void;
+  showMinesAround(cell: Cell): void;
+  showMinesCells(): void;
   onCellClick(cell: Cell): void;
   onFlag(cell: Cell): void;
+  prepareCells(): void;
+  createCells(): void;
+  shapeCells(): Cell[];
+  createMines(): void;
+  calculateMinesAround(): void;
+  drawCell(cell: Cell): void;
+  drawCellTextMine(cell: Cell): void;
+  drawCellFlag(cell: Cell): void;
 }
 
 class GameManager implements IGameManager {
@@ -50,12 +64,32 @@ class GameManager implements IGameManager {
   }
 
   checkWin() {
-    // TODO: To implement.
+    let cells = this.store.getState().cells;
+
+    let allCellsUncovered = cells.every(
+      (cell) => cell.state !== CellState.Undiscovered,
+    );
+    let allFlaggedCellsAreMines = cells
+      .filter((cell) => cell.state === CellState.Flagged)
+      .every((cell) => cell.mine);
+
+    console.log({
+      allCellsUncovered,
+      allFlaggedCellsAreMines,
+    });
+
+    return allCellsUncovered && allFlaggedCellsAreMines;
+  }
+
+  handleWin() {
+    const result = this.checkWin();
+    if (result) {
+      this.store.getState().updateStatus(Status.Succeeded);
+      window.alert('You won the game, congratulations!');
+    }
   }
 
   onClick(ev: MouseEvent) {
-    console.log('onClick');
-    ev.preventDefault();
     const gameStatus = this.store.getState().gameStatus;
     switch (gameStatus) {
       case Status.Init:
@@ -67,6 +101,7 @@ class GameManager implements IGameManager {
         }
         break;
       case Status.Failed:
+      case Status.Succeeded:
         this.start();
         break;
     }
@@ -119,6 +154,7 @@ class GameManager implements IGameManager {
           }
         }
       }
+      this.handleWin();
     }
   }
 
@@ -138,16 +174,17 @@ class GameManager implements IGameManager {
       this.store.getState().modifyCell(newCell);
       this.drawCell({ ...newCell, mine: false });
       this.drawCellFlag(newCell);
+      this.handleWin();
     }
   }
 
-  private prepareCells() {
+  prepareCells() {
     this.createCells();
     this.createMines();
     this.calculateMinesAround();
   }
 
-  private createCells() {
+  createCells() {
     const tempCells = this.shapeCells();
     for (let i = 0; i < tempCells.length; i++) {
       this.drawCell(tempCells[i]);
@@ -155,7 +192,7 @@ class GameManager implements IGameManager {
     this.store.getState().updateCells(tempCells);
   }
 
-  private shapeCells() {
+  shapeCells() {
     const tempCells: Cell[] = [];
     for (let x = 0; x < this.cellUtils.getSize(); x++) {
       for (let y = 0; y < this.cellUtils.getSize(); y++) {
@@ -171,7 +208,7 @@ class GameManager implements IGameManager {
     return tempCells;
   }
 
-  private createMines() {
+  createMines() {
     const tempCells = this.cellUtils.copyCells();
     const cellsCount = this.store.getState().cellsCount;
     const minesCount = this.store.getState().minesCount;
@@ -190,7 +227,7 @@ class GameManager implements IGameManager {
     this.store.getState().updateCells(tempCells);
   }
 
-  private calculateMinesAround() {
+  calculateMinesAround() {
     const tempCells = this.cellUtils.copyCells();
     const minesCells = tempCells
       .filter((cell) => cell.mine)
@@ -212,7 +249,7 @@ class GameManager implements IGameManager {
     this.store.getState().updateCells(tempCells);
   }
 
-  private drawCell(cell: Cell): void {
+  drawCell(cell: Cell): void {
     this.canvasRenderer.drawCell({
       ...cell,
       size: this.cellStructure.getSize(),
@@ -220,7 +257,7 @@ class GameManager implements IGameManager {
     });
   }
 
-  private drawCellTextMine({ x, y, minesAround }: Cell) {
+  drawCellTextMine({ x, y, minesAround }: Cell) {
     this.canvasRenderer.drawText({
       x: x + CELL_TEXT_OFFSET_X,
       y: y + CELL_TEXT_OFFSET_Y,
@@ -229,7 +266,7 @@ class GameManager implements IGameManager {
     });
   }
 
-  private drawCellFlag({ x, y }: Cell) {
+  drawCellFlag({ x, y }: Cell) {
     this.canvasRenderer.drawText({
       x: x + CELL_TEXT_OFFSET_X,
       y: y + CELL_TEXT_OFFSET_Y,
